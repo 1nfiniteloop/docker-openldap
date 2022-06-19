@@ -1,0 +1,115 @@
+#!/bin/sh
+set -e
+
+readonly DB_CONFIG_PATH="${LDAP_STORAGE_PATH}/config"
+readonly DB_PATH="${LDAP_STORAGE_PATH}/${LDAP_BASE_DN}"
+readonly LDIF_PATH="/etc/openldap/init"
+
+# globals:
+SLAPD_PID=""
+
+info()
+{
+  echo "ldap_init: ${@}";
+}
+
+slapd_start_local()
+{
+  slapd_start "-h ldapi:///" &
+  SLAPD_PID=$!
+  trap "kill ${SLAPD_PID}" EXIT
+  wait_until_started__
+}
+
+slapd_start()
+{
+  exec slapd -d none -u ldap -g ldap -F "${DB_CONFIG_PATH}" "${@}"
+}
+
+wait_until_started__()
+{
+  local wait_time=0.5
+  local count=0
+  local max_tries=120
+  while ! ldap_search_config "(objectClass=olcDatabaseConfig)" &> /dev/null; do
+    sleep ${wait_time}
+    let "count+=1"
+    test ${count} -lt ${max_tries}
+  done
+}
+
+ldap_search_config()
+{
+  ldapsearch -Q -H ldapi:/// -Y EXTERNAL -b "cn=config" "${@}"
+}
+
+ldapmodify_appply_template()
+{
+  if envsubst --check "${ldif}"; then
+    envsubst "${ldif}" \
+      |ldapmodify -Q -H ldapi:/// -Y EXTERNAL
+  fi
+}
+
+ldap_user_exec()
+{
+  local cmd="${@}"
+  su ldap -s /bin/ash -c "exec ${cmd}"
+}
+
+slapadd_config()
+{
+  ldap_user_exec "slapadd -n 0 -F ${DB_CONFIG_PATH} -l ${1}"
+}
+
+slapd_stop_local()
+{
+  kill "${SLAPD_PID}"
+  wait "${SLAPD_PID}"
+}
+
+slapd_apply_ldif_in()
+{
+  for ldif in $(find ${1} -type f -iname '*.ldif' |sort); do
+    info "Add configuration: ${ldif}"
+    ldapmodify_appply_template "${ldif}"
+  done
+}
+
+# ------------------------------------------------------------------------------
+# Main
+# ------------------------------------------------------------------------------
+if [[ ! -e "${LDAP_STORAGE_PATH}" ]]; then
+  mkdir -p ${LDAP_STORAGE_PATH}
+fi
+
+if [[ $(stat -c "%U:%G" ${LDAP_STORAGE_PATH}) != "ldap:ldap" ]]; then
+  chown ldap:ldap ${LDAP_STORAGE_PATH}
+fi
+
+init_db_config=""
+
+# Add slapd base configuration to allow server to start
+if [[ ! -e "${DB_CONFIG_PATH}" ]]; then
+  ldap_user_exec mkdir -p "${DB_CONFIG_PATH}"
+  slapadd_config "${LDIF_PATH}/init.ldif"
+  init_db_config="true"
+fi
+
+# Start a temporary slapd, listening only on localhost, to load configs into
+# with "ldapmodify".
+slapd_start_local
+
+if [[ -n "${init_db_config}" ]]; then
+  info "initializing config database"
+  slapd_apply_ldif_in "${LDIF_PATH}/db-config"
+fi
+
+if [[ ! -e "${DB_PATH}" ]]; then
+  ldap_user_exec mkdir -p "${DB_PATH}"
+  info "initializing database"
+  slapd_apply_ldif_in "${LDIF_PATH}/db"
+fi
+
+slapd_stop_local
+slapd_start "${@}"

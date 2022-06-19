@@ -1,0 +1,233 @@
+#!/bin/sh
+set -e
+
+# globals:
+LDAP_PID=""
+
+if [[ "${VERBOSE}" == "debug" ]]; then
+  LDAP_DEBUG="-d 6 -v"
+  set -x
+fi
+
+# config:
+export LDAP_STORAGE_PATH="/tmp/ldap"
+export LDAP_ADMIN_USERNAME="Admin"
+export LDAP_ADMIN_PASSWORD="secret"
+export LDAP_BASE_DN="dc=example,dc=com"
+export LDAP_OU_USERS="Users"
+export LDAP_OU_GROUPS="Groups"
+LDAP_TLS_PATH="/tmp/certs"
+export LDAP_TLS_CERT="${LDAP_TLS_PATH}/cert.pem"
+export LDAP_TLS_KEY="${LDAP_TLS_PATH}/key.pem"
+export LDAP_TLS_CA_CERT="${LDAP_TLS_PATH}/ca_cert.pem"
+
+create_tls_cert()
+{
+  mkdir -p ${LDAP_TLS_PATH}
+  info "Creating tls certificate and key"
+  openssl genpkey \
+    -algorithm EC \
+    -pkeyopt ec_paramgen_curve:P-256 \
+    -out "${LDAP_TLS_KEY}"
+  openssl req \
+    -x509 \
+    -subj "/C=SE/L=World Wide Web/O=World Wide Web Inc/OU=World Wide Web Inc Certificate Authority/CN=${HOSTNAME}" \
+    -key "${LDAP_TLS_KEY}" \
+    -out "${LDAP_TLS_CERT}" \
+    -sha256 \
+    -days 365
+  ln -sf "${LDAP_TLS_CERT}" "${LDAP_TLS_CA_CERT}"
+  chown -R ldap:ldap ${LDAP_TLS_PATH}
+  # Must also add root cert to system, for ldap client to work:
+  cp "${LDAP_TLS_CERT}" /usr/local/share/ca-certificates
+  update-ca-certificates
+}
+
+info()
+{
+  echo "ldap_test: ${@}"
+}
+
+# ------------------------------------------------------------------------------
+# LDAP test helper functions
+# ------------------------------------------------------------------------------
+as_user_root()
+{
+  local cmd="${1}"
+  shift
+  ${cmd} -Q -H ldapi:/// -Y EXTERNAL ${@}
+}
+
+as_user_admin()
+{
+  local cmd="${1}"
+  shift
+  ${cmd} ${LDAP_DEBUG} -x -ZZ -H ldap:// -D cn=${LDAP_ADMIN_USERNAME},${LDAP_BASE_DN} -w ${LDAP_ADMIN_PASSWORD} ${@}
+}
+
+as_user_anonymous()
+{
+  local cmd="${1}"
+  shift
+  ${cmd} ${LDAP_DEBUG} -x -ZZ -H ldap:// ${@}
+}
+
+as_user()
+{
+  local as_user="${1}"
+  local cmd="${2}"
+  shift; shift
+  ${cmd} ${LDAP_DEBUG} -x -ZZ -H ldap:// -D "cn=${as_user},ou=${LDAP_OU_USERS},${LDAP_BASE_DN}" -w ${as_user} ${@}
+}
+
+ldif_add_user()
+{
+  local password="$(slappasswd -s ${1})"
+  echo "dn: cn=${1},ou=${LDAP_OU_USERS},${LDAP_BASE_DN}"
+  echo "changetype: add"
+  echo "objectClass: inetOrgPerson"
+  echo "sn: ${1}"
+  echo "userPassword: ${password}"
+}
+
+ldif_delete_user()
+{
+  echo "dn: cn=${1},ou=${LDAP_OU_USERS},${LDAP_BASE_DN}"
+  echo "changetype: delete"
+}
+
+ldif_modify_password()
+{
+  local user="${1}"
+  local password="$(slappasswd -s ${2})"
+  echo "dn: cn=${1},ou=${LDAP_OU_USERS},${LDAP_BASE_DN}"
+  echo "changetype: modify"
+  echo "replace: userPassword"
+  echo "userPassword: ${password}"
+}
+
+ldap_add_users()
+{
+  while [[ ${#} -gt 0 ]]; do
+    ldif_add_user "${1}" |as_user_admin ldapmodify
+    shift
+  done
+}
+
+# ------------------------------------------------------------------------------
+# Test fixture
+# ------------------------------------------------------------------------------
+test_setup()
+{
+  mkdir -p ${LDAP_TLS_PATH}
+  create_tls_cert
+  info "Starting openldap"
+  ldap_init -h "ldapi:/// ldap://" > /dev/null &
+  LDAP_PID=$!
+  trap test_teardown EXIT
+  sleep 1.5
+}
+
+test_teardown()
+{
+  kill "${LDAP_PID}"
+  wait "${LDAP_PID}"
+  rm -r ${LDAP_STORAGE_PATH} ${LDAP_TLS_PATH}
+}
+
+test_case_setup()
+{
+  ldap_add_users "self" "other"
+}
+
+test_case_teardown()
+{
+  ldif_delete_user "other" |as_user_admin ldapmodify
+  ldif_delete_user "self" |as_user_admin ldapmodify
+}
+
+test_main()
+{
+  for test_case in ${@}; do
+    info "${test_case}"
+    if [[ -n "${VERBOSE}" ]]; then
+      test_case_run "${test_case}"
+    else
+      test_case_run "${test_case}" > /dev/null
+    fi
+  done
+}
+
+test_case_run()
+{
+  local test_case_fcn="${1%()}" # remove "()" to call the function.
+  test_case_setup
+  ${test_case_fcn}
+  test_case_teardown
+}
+
+# ------------------------------------------------------------------------------
+# LDAP Test cases
+# ------------------------------------------------------------------------------
+test_ldap_tls_must_be_used_if_enabled()
+{
+  ! ldapwhoami ${LDAP_DEBUG} -x -H ldap:// -D cn=${LDAP_ADMIN_USERNAME},${LDAP_BASE_DN} -w ${LDAP_ADMIN_PASSWORD}
+}
+
+test_ldap_whoami()
+{
+  as_user_root ldapwhoami
+  as_user_admin ldapwhoami
+  as_user_anonymous ldapwhoami
+  as_user "self" ldapwhoami
+  as_user "other" ldapwhoami
+}
+
+test_ldap_config_db_read_from_root_shall_succeed()
+{
+  as_user_root ldapsearch -b "cn=config" "(objectclass=olcDatabaseConfig)"
+}
+
+test_ldap_config_db_read_from_non_root_shall_fail()
+{
+  # NOTE: according to docs default acl is to allow all read access though.
+  ! as_user_admin ldapsearch -b "cn=config" "(objectclass=olcDatabaseConfig)"
+  ! as_user_anonymous ldapsearch -b "cn=config" "(objectclass=olcDatabaseConfig)"
+  ! as_user "other" ldapsearch -b "cn=config" "(objectclass=olcDatabaseConfig)"
+}
+
+test_ldap_db_shall_allow_reads_by_anonymous()
+{
+  as_user_anonymous ldapsearch -b "${LDAP_BASE_DN}"
+}
+
+test_ldap_db_shall_deny_writes_by_others()
+{
+  ! ldif_add_user "another" |as_user "self" ldapmodify
+}
+
+test_ldap_acl_password_shall_allow_writes_by_self()
+{
+  ldif_modify_password "self" "new-password" |as_user "self" ldapmodify
+}
+
+test_ldap_acl_password_shall_allow_writes_by_admin()
+{
+  ldif_modify_password "self" "new-password" |as_user_admin ldapmodify
+}
+
+test_ldap_acl_password_shall_deny_writes_by_others()
+{
+  ! ldif_modify_password "self" "new-password" |as_user "other" ldapmodify
+}
+
+test_ldap_acl_password_shall_deny_reads_by_others()
+{
+  ! as_user "other" ldapsearch -b "cn=self,${LDAP_BASE_DN}" "userPassword" \
+    |grep -q -E "^userPassword:"
+}
+
+# main:
+test_setup
+test_main "$(grep -E "^(test_ldap.*)\(\)$" ${0})" # find all functions prefixed with "test_ldap"
+echo "All tests run successfully!"

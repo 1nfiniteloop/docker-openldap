@@ -1,0 +1,23 @@
+dn: cn=config
+changetype: modify
+# Require relatively strong crypto for all connections.
+add: olcSecurity
+olcSecurity: ssf=128
+-
+# Allow local connections from within the container to pass the ssf constraint
+# above.
+add: olcLocalSSF
+olcLocalSSF: 128
+-
+# Require modern, stronger versions of the TLS protocol.
+add: olcTLSProtocolMin
+olcTLSProtocolMin: 3.1
+-
+add: olcTLSCACertificateFile
+olcTLSCACertificateFile: ${LDAP_TLS_CA_CERT}
+-
+add: olcTLSCertificateFile
+olcTLSCertificateFile: ${LDAP_TLS_CERT}
+-
+add: olcTLSCertificateKeyFile
+olcTLSCertificateKeyFile: ${LDAP_TLS_KEY}

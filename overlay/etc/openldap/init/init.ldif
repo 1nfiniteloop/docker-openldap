@@ -1,0 +1,37 @@
+# Root LDAP configuration file. For a thorough explanation, check
+# https://www.openldap.org/doc/.
+
+# The global config object. See
+# https://www.openldap.org/doc/admin24/slapdconf2.html#cn=config.
+dn: cn=config
+objectClass: olcGlobal
+cn: config
+olcPidFile: /run/openldap/slapd.pid
+olcArgsFile: /run/openldap/slapd.args
+
+# https://www.openldap.org/doc/admin24/slapdconf2.html#cn=module
+dn: cn=module,cn=config
+objectClass: olcModuleList
+cn: module
+olcModulepath:  /usr/lib/openldap
+olcModuleload:  back_mdb.so
+
+# https://www.openldap.org/doc/admin24/slapdconf2.html#cn=schema
+dn: cn=schema,cn=config
+objectClass: olcSchemaConfig
+cn: schema
+
+# Schemas:
+include: file:///etc/openldap/schema/core.ldif
+include: file:///etc/openldap/schema/cosine.ldif
+include: file:///etc/openldap/schema/inetorgperson.ldif
+include: file:///etc/openldap/schema/nis.ldif
+include: file:///etc/openldap/schema/openssh-lpk.ldif
+
+# Posix user "root" is root of the database, which always has read/write access.
+# Hint: Use flags "-H ldapi:/// -Y EXTERNAL" with any of the ldap tools once you
+# get a shell inside the container.
+dn: olcDatabase=config,cn=config
+objectClass: olcDatabaseConfig
+olcDatabase: config
+olcRootDN: gidNumber=0+uidNumber=0,cn=peercred,cn=external,cn=auth

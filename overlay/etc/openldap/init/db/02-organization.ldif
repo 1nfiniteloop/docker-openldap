@@ -1,0 +1,22 @@
+dn: ${LDAP_BASE_DN}
+changetype: add
+objectClass: dcObject
+objectClass: organization
+o: Top Level Organization
+
+# See "/etc/openldap/schema/inetorgperson.schema" for the attributes.
+dn: ou=${LDAP_OU_USERS:-Users},${LDAP_BASE_DN}
+changetype: add
+objectClass: organizationalUnit
+ou: ${LDAP_OU_USERS:-Users}
+
+dn: ou=${LDAP_OU_GROUPS:-Groups},${LDAP_BASE_DN}
+changetype: add
+objectClass: organizationalUnit
+ou: ${LDAP_OU_GROUPS:-Groups}
+
+dn: cn=${LDAP_ADMIN_USERNAME:-Admin},${LDAP_BASE_DN}
+changetype: add
+objectClass: simpleSecurityObject
+objectClass: organizationalRole
+userPassword: $(slappasswd -s "${LDAP_ADMIN_PASSWORD}")

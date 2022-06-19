@@ -1,0 +1,11 @@
+dn: olcDatabase={1}mdb,cn=config
+changetype: modify
+add: olcAccess
+olcAccess: to attrs=userPassword,sshPublicKey
+  by self write
+  by anonymous auth
+  by dn="cn=${LDAP_ADMIN_USERNAME:-Admin},${LDAP_BASE_DN}" write
+  by * none
+olcAccess: to *
+  by dn="cn=${LDAP_ADMIN_USERNAME:-Admin},${LDAP_BASE_DN}" write
+  by * read

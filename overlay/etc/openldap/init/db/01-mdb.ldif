@@ -1,0 +1,16 @@
+dn: olcDatabase=mdb,cn=config
+changetype: add
+objectClass: olcDatabaseConfig
+objectClass: olcMdbConfig
+olcDatabase: mdb
+# Posix user "root" is root of the database, which always has read/write access.
+# Hint: Use flags "-H ldapi:/// -Y EXTERNAL" with any of the ldap tools once you
+# get a shell inside the container.
+olcRootDN: gidNumber=0+uidNumber=0,cn=peercred,cn=external,cn=auth
+olcSuffix: ${LDAP_BASE_DN}
+olcDbDirectory: ${LDAP_STORAGE_PATH}/${LDAP_BASE_DN}
+
+# "5.2.6.7. olcDbIndex" in https://www.openldap.org/doc/admin24/slapdconf2.html
+olcDbIndex: objectClass eq
+olcDbIndex: uid eq
+
