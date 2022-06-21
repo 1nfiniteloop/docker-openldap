@@ -51,5 +51,5 @@ jobs:
           push: true
           tags: ${{ steps.meta.outputs.tags }}
           # ref: https://github.com/docker/buildx/blob/master/docs/reference/buildx_build.md#-use-an-external-cache-source-for-a-build---cache-from
-          cache-from: type=registry,ref=1nfiniteloop/openldap:latest
+          cache-from: type=registry,ref=1nfiniteloop/openldap:main
           cache-to: type=inline
