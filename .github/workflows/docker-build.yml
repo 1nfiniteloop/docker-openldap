@@ -8,7 +8,7 @@ on:
       - 'v*'
 
 jobs:
-  main:
+  build-docker-image:
     name: build and publish docker image
     runs-on: ubuntu-latest
     steps:
@@ -39,8 +39,6 @@ jobs:
             type=semver,pattern={{major}}.{{minor}}
             type=sha
 
-      # TODO: run acceptance test here before pushing
-
       # ref: https://github.com/docker/build-push-action
       - name: Build and push
         uses: docker/build-push-action@v2
@@ -53,3 +51,13 @@ jobs:
           # ref: https://github.com/docker/buildx/blob/master/docs/reference/buildx_build.md#-use-an-external-cache-source-for-a-build---cache-from
           cache-from: type=registry,ref=1nfiniteloop/openldap:main
           cache-to: type=inline
+
+  # TODO: only push if this job passes.
+  acceptance-test:
+    needs: build-docker-image
+    name: Test ldap
+    runs-on: ubuntu-latest
+    container: 1nfiniteloop/openldap
+    steps:
+      - name: Run acceptance test
+        run: /root/ldap_test
