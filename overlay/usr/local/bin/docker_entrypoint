@@ -1,0 +1,6 @@
+#!/bin/bash
+
+crond -f &
+/usr/local/bin/ldap_init &
+
+wait -n

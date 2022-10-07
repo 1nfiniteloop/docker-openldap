@@ -27,16 +27,10 @@ Start ldap service:
       --volume ldap_db:/mnt/db \
       1nfiniteloop/openldap
 
-In case tls is used, a healthcheck script exists to check the expiry of the
-certificates and restart openldap service when expired. A restart is needed to
-load renewed certificates, asssuming that an external service exists and
-actually renew expired certificates.
-
-    docker run \
-      --health-cmd ldap_tls_healthcheck \
-      --health-interval 1h \
-      ...
-      1nfiniteloop/openldap
+In case tls certificates is used, a cron job exists to check the expiry of the
+certificate. The cron job reloads the certificate file in slapd, asssuming an
+external service renew expired certificates (example
+https://github.com/1nfiniteloop/docker-pki).
 
 ## Development
 

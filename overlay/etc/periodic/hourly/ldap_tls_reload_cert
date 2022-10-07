@@ -1,0 +1,26 @@
+#!/bin/bash
+
+# If tls is enabled:
+# When certificates are renewed, slapd needs to reload certificate file (or be
+# restarted). This script will check expiry and reload certificate file if
+# expired, assuming that certificate is renewed from an external service.
+readonly ldif_file="/etc/openldap/ldif/tls-reload-cert.ldif"
+
+cert_is_ok()
+{
+  local expire_in_seconds=5400
+  echo "" \
+    |openssl s_client -starttls ldap ${HOSTNAME}:389 2> /dev/null \
+    |openssl x509 -noout -checkend ${expire_in_seconds} > /dev/null
+}
+
+reload_cert()
+{
+  envsubst ${ldif_file} \
+    |ldapmodify -Q -H ldapi:/// -Y EXTERNAL
+  echo "tls certificate reloaded"
+}
+
+if envsubst --check ${ldif_file} &> /dev/null; then
+  cert_is_ok || reload_cert
+fi

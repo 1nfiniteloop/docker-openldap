@@ -1,7 +1,8 @@
-FROM alpine:3.15
+FROM alpine:3.16
 
 RUN apk update \
   && apk add \
+    bash \
     ca-certificates \
     openldap \
     openldap-back-mdb \
@@ -21,4 +22,4 @@ ENV LDAP_STORAGE_PATH="/var/lib/openldap/db" \
     LDAP_BASE_DN="dc=example,dc=com" \
     LDAP_ADMIN_PASSWORD="secret"
 
-CMD ["ldap_init", "-h", "ldapi:/// ldap://"]
+CMD ["docker_entrypoint", "-h", "ldapi:/// ldap://"]

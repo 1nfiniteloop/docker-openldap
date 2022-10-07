@@ -1,0 +1,4 @@
+dn: cn=config
+changetype: modify
+replace: olcTLSCertificateFile
+olcTLSCertificateFile: ${LDAP_TLS_CERT}

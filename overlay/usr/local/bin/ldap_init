@@ -1,5 +1,5 @@
-#!/bin/sh
-set -e
+#!/bin/bash
+set -ue
 
 readonly DB_CONFIG_PATH="${LDAP_STORAGE_PATH}/config"
 readonly DB_PATH="${LDAP_STORAGE_PATH}/${LDAP_BASE_DN}"

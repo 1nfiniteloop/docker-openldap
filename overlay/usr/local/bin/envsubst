@@ -1,41 +1,14 @@
-#!/bin/sh
+#!/bin/bash
 # envsubst implementation with option to check that all variables has a value
-set -e
-
-info()
-{
-  >&2 echo "envsubst: ${@}";
-}
+set -ue
 
 substitute_file()
 {
   eval "echo \"$(cat ${1})\""
 }
 
-substitute()
-{
-  eval "echo \"${1}\""
-}
-
-# NOTE: when more than one variable is present per linte this won't work as
-# expected.
-check()
-{
-  local any_unset=""
-  local IFS=$'\n'
-  for var in $(grep -o '${.*}' ${1}); do
-    if [[ -z "$(substitute ${var})" ]]; then
-      any_unset="true"
-      info "unset: ${var}"
-    fi
-  done
-  if [[ -n "${any_unset}" ]]; then
-    return 1
-  fi
-}
-
 if [[ "${1}" == "--check" ]]; then
-  check "${2}"
+  substitute_file "${2}" > /dev/null
 else
   substitute_file "${1}"
 fi
