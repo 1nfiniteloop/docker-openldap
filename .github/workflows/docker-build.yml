@@ -7,6 +7,9 @@ on:
     tags:
       - 'v*'
 
+env:
+  IMAGE_NAME: 1nfiniteloop/openldap
+
 jobs:
   build-docker-image:
     name: build and publish docker image
@@ -27,11 +30,21 @@ jobs:
           username: ${{ secrets.DOCKERHUB_USER }}
           password: ${{ secrets.DOCKERHUB_TOKEN }}
 
+      - name: Build docker image locally for running acceptance test
+        uses: docker/build-push-action@v3
+        with:
+          context: .
+          load: true
+          tags: ${{ env.IMAGE_NAME }}:test
+
+      - name: Test ldap service
+        run: docker run --rm --entrypoint /bin/ash ${{ env.IMAGE_NAME }}:test /root/ldap_test
+
       - name: Generate Docker metadata
         id: meta
         uses: crazy-max/ghaction-docker-meta@v2
         with:
-          images: 1nfiniteloop/openldap
+          images: ${{ env.IMAGE_NAME }}
           # ref: https://github.com/crazy-max/ghaction-docker-meta
           tags: |
             type=ref,event=branch
@@ -49,16 +62,5 @@ jobs:
           push: true
           tags: ${{ steps.meta.outputs.tags }}
           # ref: https://github.com/docker/buildx/blob/master/docs/reference/buildx_build.md#-use-an-external-cache-source-for-a-build---cache-from
-          cache-from: type=registry,ref=1nfiniteloop/openldap:main
+          cache-from: type=registry,ref=${{ env.IMAGE_NAME }}:main
           cache-to: type=inline
-
-  # TODO: only push if this job passes.
-  # TODO: must use correct tag also!
-  acceptance-test:
-    needs: build-docker-image
-    name: Test ldap
-    runs-on: ubuntu-latest
-    container: 1nfiniteloop/openldap
-    steps:
-      - name: Run acceptance test
-        run: /root/ldap_test
