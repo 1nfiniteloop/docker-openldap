@@ -3,7 +3,7 @@ set -ue
 
 readonly DB_CONFIG_PATH="${LDAP_STORAGE_PATH}/config"
 readonly DB_PATH="${LDAP_STORAGE_PATH}/${LDAP_BASE_DN}"
-readonly LDIF_PATH="/etc/openldap/init"
+readonly LDIF_PATH="/etc/openldap/ldif"
 
 # globals:
 SLAPD_PID=""
@@ -104,13 +104,13 @@ slapd_start_local
 
 if [[ -n "${init_db_config}" ]]; then
   info "initializing config database"
-  slapd_apply_ldif_in "${LDIF_PATH}/db-config"
+  slapd_apply_ldif_in "${LDIF_PATH}/init-config-db"
 fi
 
 if [[ ! -e "${DB_PATH}" ]]; then
   ldap_user_exec mkdir -p "${DB_PATH}"
   info "initializing database"
-  slapd_apply_ldif_in "${LDIF_PATH}/db"
+  slapd_apply_ldif_in "${LDIF_PATH}/init-db"
 fi
 
 slapd_stop_local

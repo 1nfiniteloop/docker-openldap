@@ -7,8 +7,8 @@ Minimalistic Alpine Linux Docker image for serving an openldap database.
 The database will be initialized once during first start, based on the
 environment variables found in:
 
-* `/etc/openldap/init/db/*.ldif`
-* `/etc/openldap/init/db-config/*.ldif`
+* `/etc/openldap/ldif/init-db/*.ldif`
+* `/etc/openldap/ldif/init-config-db/*.ldif`
 
 The environment variables in ldif files is substituted during init. If any
 environment variable is unset (example variables in `01-tls.ldif`) the ldif file
