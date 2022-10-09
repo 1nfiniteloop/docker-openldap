@@ -46,8 +46,11 @@ ldap_search_config()
 ldapmodify_appply_template()
 {
   if envsubst --check "${ldif}"; then
+    info "Add configuration: ${ldif}"
     envsubst "${ldif}" \
       |ldapmodify -Q -H ldapi:/// -Y EXTERNAL
+  else
+    info "Skip configuration: \"${ldif}\" which contains undefined variables"
   fi
 }
 
@@ -71,7 +74,6 @@ slapd_stop_local()
 slapd_apply_ldif_in()
 {
   for ldif in $(find ${1} -type f -iname '*.ldif' |sort); do
-    info "Add configuration: ${ldif}"
     ldapmodify_appply_template "${ldif}"
   done
 }

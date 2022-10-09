@@ -8,7 +8,7 @@ substitute_file()
 }
 
 if [[ "${1}" == "--check" ]]; then
-  substitute_file "${2}" > /dev/null
+  substitute_file "${2}" &> /dev/null
 else
   substitute_file "${1}"
 fi
