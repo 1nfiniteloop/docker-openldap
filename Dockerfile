@@ -22,4 +22,5 @@ ENV LDAP_STORAGE_PATH="/var/lib/openldap/db" \
     LDAP_BASE_DN="dc=example,dc=com" \
     LDAP_ADMIN_PASSWORD="secret"
 
-CMD ["docker_entrypoint", "-h", "ldapi:/// ldap://"]
+ENTRYPOINT ["docker_entrypoint"]
+CMD ["-h", "ldapi:/// ldap://"]
