@@ -27,16 +27,17 @@ Start ldap service:
       --volume ldap_db:/mnt/db \
       1nfiniteloop/openldap
 
-In case tls certificates is used, a cron job exists to check the expiry of the
-certificate. The cron job reloads the certificate file in slapd, asssuming an
-external service renew expired certificates (example
-https://github.com/1nfiniteloop/docker-pki).
+When an external service is used to renew expired certificates (example
+https://github.com/1nfiniteloop/docker-pki) slapd will continue use the certificate
+from memory. Thus, a service exists to reload tls certificate file into slapd
+when renewed. A tls healthcheck script also exists to check the expiry of the
+certificates: `ldap_tls_healthcheck`.
 
 ## Development
 
 To validate the default database configuration there is an acceptance test
 available in `/root/ldap_test`. To run test:
 
-    docker run --rm 1nfiniteloop/openldap /root/ldap_test
+    docker run --entrypoint /bin/sh --rm 1nfiniteloop/openldap /root/ldap_test
 
 Run test in verbose by setting environment variable `VERBOSE="true"`.

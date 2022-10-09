@@ -1,6 +1,5 @@
-#!/bin/bash
+#!/bin/sh
 
-crond -f &
-ldap_init ${@} &
-
-wait -n
+# Monitor if tls is enabled, or it exits immediately
+ldap_tls_cert_monitor &
+exec ldap_init "${@}"

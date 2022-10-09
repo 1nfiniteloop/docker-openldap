@@ -1,0 +1,28 @@
+#!/bin/sh
+
+readonly LDIF_FILE="/etc/openldap/ldif/tls-reload-cert.ldif"
+TLS_CERT_PATH=""
+TLS_CERT_FILE=""
+
+reload_tls_cert()
+{
+  echo "Reloading tls certificate"
+  envsubst ${LDIF_FILE} \
+    |ldapmodify -Q -H ldapi:/// -Y EXTERNAL
+}
+
+on_new_file()
+{
+  while read _ _ new_file; do
+    if [[ "${new_file}" == "${TLS_CERT_FILE}" ]]; then
+      reload_tls_cert
+    fi
+  done
+}
+
+if [[ -n "${LDAP_TLS_CERT}" ]]; then
+  echo "Watching tls certificate file: ${LDAP_TLS_CERT}"
+  readonly TLS_CERT_PATH="${LDAP_TLS_CERT%/*}"
+  readonly TLS_CERT_FILE="${LDAP_TLS_CERT##*/}"
+  inotifyd - ${TLS_CERT_PATH}:n |on_new_file
+fi

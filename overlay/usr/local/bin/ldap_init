@@ -1,4 +1,4 @@
-#!/bin/bash
+#!/bin/sh
 set -ue
 
 readonly DB_CONFIG_PATH="${LDAP_STORAGE_PATH}/config"

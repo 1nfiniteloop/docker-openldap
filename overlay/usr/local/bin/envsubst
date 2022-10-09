@@ -1,4 +1,4 @@
-#!/bin/bash
+#!/bin/sh
 # envsubst implementation with option to check that all variables has a value
 set -ue
 

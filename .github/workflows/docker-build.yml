@@ -53,6 +53,7 @@ jobs:
           cache-to: type=inline
 
   # TODO: only push if this job passes.
+  # TODO: must use correct tag also!
   acceptance-test:
     needs: build-docker-image
     name: Test ldap

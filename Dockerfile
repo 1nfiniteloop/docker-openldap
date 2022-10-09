@@ -2,8 +2,8 @@ FROM alpine:3.16
 
 RUN apk update \
   && apk add \
-    bash \
     ca-certificates \
+    inotify-tools \
     openldap \
     openldap-back-mdb \
     openldap-clients \
